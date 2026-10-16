@@ -26,19 +26,58 @@
 //    WHERE s.status = 'CLOSED'
 //      AND (CAST(:since AS timestamptz) IS NULL OR s.ended_at > :since)
 //    ORDER BY s.ended_at, p.score DESC
-const { QueryTypes } = require('sequelize');
+
+
 const { sequelize } = require('../models');
+const { QueryTypes } = require('sequelize');
+
+async function ping() {
+  await sequelize.authenticate();
+}
 
 async function findFinishedGamePlayers(since) {
   const sql = `
-    SELECT NULL AS session_code
-     WHERE FALSE
-  `; // <- replace this placeholder with your query
+    SELECT
+      s.join_code AS session_code,
+      s.started_at,
+      s.ended_at,
+      u.school_id,
+      p.nickname,
+      p.final_score AS score,
+      (
+        SELECT COUNT(*)
+        FROM answers a
+        WHERE a.player_id = p.player_id
+      ) = (
+        SELECT COUNT(*)
+        FROM questions q
+        WHERE q.set_id = s.set_id
+      ) AS completed
+    FROM sessions s
+    INNER JOIN players p
+      ON p.session_id = s.session_id
+    INNER JOIN users u
+      ON u.user_id = p.user_id
+    WHERE s.status = 'ended'
+      AND s.ended_at IS NOT NULL
+      AND (
+        CAST(:since AS TIMESTAMPTZ) IS NULL
+        OR s.ended_at > CAST(:since AS TIMESTAMPTZ)
+      )
+    ORDER BY
+      s.ended_at ASC,
+      p.final_score DESC;
+  `;
 
   return sequelize.query(sql, {
     type: QueryTypes.SELECT,
-    replacements: { since: since ? since.toISOString() : null },
+    replacements: {
+      since: since ? new Date(since).toISOString() : null,
+    },
   });
 }
 
-module.exports = { findFinishedGamePlayers };
+module.exports = {
+  ping,
+  findFinishedGamePlayers,
+};

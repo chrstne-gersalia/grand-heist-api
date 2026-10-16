@@ -60,11 +60,21 @@ Base URL: `http://localhost:3001/api/v1`
 
 ## What "completed" means in my game
 
-[One or two sentences: when does a player count as having completed a game? For example: "A player completed the game when they answered every question, even if some answers were wrong or timed out."]
+A player is considered completed when they have answered every question in the question set assigned to the finished game session.
+The number of distinct questions answered by the player must equal the total number of questions in that session's question set.
+Players who have not answered every question are marked as incomplete and do not receive a rank or appear on the podium.
 
 ## Tables
 
-[List your tables, one line each, in the order of your migrations.]
+## Tables
+
+The results endpoint uses the following database tables:
+
+- `sessions`: Provides the game join code, status, start time, end time, and assigned question set.
+- `players`: Provides the player's nickname, session membership, player ID, and final score.
+- `users`: Provides each player's school ID.
+- `questions`: Provides the total number of questions in the session's assigned question set.
+- `answers`: Provides the player's submitted answers, used to determine whether the player completed the game.
 
 ## Database scripts
 
