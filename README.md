@@ -48,15 +48,37 @@ npm run dev
 | DB_PASSWORD | (your own) | Database password. Never commit this. |
 | HUB_API_KEY | dev-hub-key | Key the Library Game Hub sends to read results. The library gives the real one at deployment. |
 
-## Endpoints (Hub Contract v1.2)
+## Endpoints
 
 Base URL: `http://localhost:3001/api/v1`
 
-| Method | Path | Purpose | Success |
+### Hub Contract v1.2
+
+| Method | Path | Purpose | Who may call |
 |---|---|---|---|
-| GET | /health | Is the API up and can it reach the database? | 200 (503 when the database is down) |
-| GET | /game-info | Slug, name, group, developer, description, player limits, version | 200 |
-| GET | /results | Finished games, every player, and the top 3. Needs the `X-Hub-Key` header. Optional `?since=` | 200 (401 without the key) |
+| GET | /health | Check API and database status | Anyone |
+| GET | /game-info | Get game information | Anyone |
+| GET | /results | Get finished game results | Library Game Hub (requires X-Hub-Key) |
+
+### Module 1 - Question Sets
+
+| Method | Path | Purpose | Who may call |
+|---|---|---|---|
+| POST | /question-sets | Create a question set | Host |
+| GET | /question-sets | List question sets | Host |
+| GET | /question-sets/:id | View a question set | Owning host |
+| PATCH | /question-sets/:id | Update a question set | Owning host |
+| DELETE | /question-sets/:id | Delete a question set | Owning host |
+
+### Module 2 - Sessions and Players
+
+| Method | Path | Purpose | Who may call |
+|---|---|---|---|
+| POST | /sessions | Create a game session | Host |
+| GET | /sessions/:code | View a game session | Anyone with the session code |
+| PATCH | /sessions/:code | Change session status | Session host |
+| POST | /sessions/:code/players | Join a game session | Player |
+| GET | /sessions/:code/players | List session players | Anyone with the session code |
 
 ## What "completed" means in my game
 
@@ -66,7 +88,7 @@ Players who have not answered every question are marked as incomplete and do not
 
 ## Tables
 
-## Tables
+
 
 The results endpoint uses the following database tables:
 

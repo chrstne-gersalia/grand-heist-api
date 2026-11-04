@@ -17,6 +17,7 @@ const User = require('./user')(sequelize, DataTypes);
 const QuestionSet = require('./question-set')(sequelize, DataTypes);
 const GameSession = require('./game-session')(sequelize, DataTypes);
 const Player = require('./player')(sequelize, DataTypes);
+const VaultTier = require('./vault-tier')(sequelize, DataTypes);
 
 //   const Player = require('./player')(sequelize, DataTypes);
 //   User.hasMany(Player, { foreignKey: 'user_id' });
@@ -35,6 +36,10 @@ GameSession.belongsTo(QuestionSet, { foreignKey: 'set_id' });
 GameSession.hasMany(Player, { foreignKey: 'session_id' });
 Player.belongsTo(GameSession, { foreignKey: 'session_id' });
 
-module.exports = { sequelize, Sequelize, DataTypes, User, QuestionSet, GameSession, Player };
+VaultTier.hasMany(Player, { foreignKey: 'tier_id' });
+Player.belongsTo(VaultTier, { foreignKey: 'tier_id' });
+
+module.exports = { sequelize, Sequelize, DataTypes, User, QuestionSet, GameSession, Player, VaultTier,
+};
 
 

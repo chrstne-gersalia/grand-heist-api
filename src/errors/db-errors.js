@@ -6,6 +6,13 @@ function constraintOf(error) {
   if (error instanceof UniqueConstraintError || error instanceof ForeignKeyConstraintError) {
     return (error.parent && error.parent.constraint) || error.index || 'unknown';
   }
+
+  const dbError = error.parent || error.original || error;
+
+  if (['23505', '23503', '23001'].includes(dbError.code)) {
+    return dbError.constraint || null;
+  }
+
   return null;
 }
 
