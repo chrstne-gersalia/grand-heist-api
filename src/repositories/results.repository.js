@@ -45,7 +45,7 @@ async function findFinishedGamePlayers(since) {
       p.nickname,
       p.final_score AS score,
       (
-        SELECT COUNT(*)
+        SELECT COUNT(DISTINCT a.question_id)
         FROM answers a
         WHERE a.player_id = p.player_id
       ) = (
@@ -72,7 +72,7 @@ async function findFinishedGamePlayers(since) {
   return sequelize.query(sql, {
     type: QueryTypes.SELECT,
     replacements: {
-      since: since ? new Date(since).toISOString() : null,
+      since: since ? since.toISOString() : null,
     },
   });
 }
