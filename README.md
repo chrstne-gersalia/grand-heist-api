@@ -35,6 +35,12 @@ npm run db:check
 npm run dev
 ```
 
+## Demo accounts
+
+The demo password for accounts with a null `password_hash` is:
+- Password: `GrandHeist123`
+The `demo-passwords` seeder updates only users whose `password_hash` is null. Existing demo accounts with placeholder hashes are not changed.
+
 ## Environment variables
 
 | Key | Example | Purpose |
