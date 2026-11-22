@@ -16,6 +16,7 @@ module.exports = {
   port: Number(process.env.PORT) || 3001,
   hubApiKey: process.env.HUB_API_KEY,
   jwtSecret: process.env.JWT_SECRET,
+  bcryptRounds: Number(process.env.BCRYPT_ROUNDS) || 10,
   corsOrigins: process.env.CORS_ORIGINS,
   db: {
     host: process.env.DB_HOST,
