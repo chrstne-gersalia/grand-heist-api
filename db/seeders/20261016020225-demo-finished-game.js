@@ -8,75 +8,41 @@
  * All sample data is fictitious.
  */
 
-const EQUIPMENT_NAMES = [
-  'Coin Pouch',
-  'Stealth Tonic',
-  'Loot Box',
-  'Vault Shield',
-  'Double Take',
-  'Pickpocket',
-  'Anti-Debuff Potion',
-  'Reversal',
+const NAMES = [
+  'Coin Pouch', 'Stealth Tonic', 'Loot Box', 'Vault Shield',
+  'Double Take', 'Pickpocket', 'Anti-Debuff Potion', 'Reversal',
 ];
 
 module.exports = {
   async up(queryInterface) {
     const db = queryInterface.sequelize;
-    const transaction = await db.transaction();
-
+    const t = await db.transaction();
     const at = (time) => new Date(`2026-10-06T${time}Z`);
 
     const find = async (sql, replacements = {}) => {
-      const [rows] = await db.query(sql, {
-        transaction,
-        replacements,
-      });
-
-      if (!rows.length) {
-        throw new Error(`Seeder lookup found nothing: ${sql}`);
-      }
-
+      const [rows] = await db.query(sql, { transaction: t, replacements });
+      if (!rows.length) throw new Error(`Seeder lookup found nothing: ${sql}`);
       return rows[0];
     };
 
     const insert = (table, rows) =>
-      queryInterface.bulkInsert(table, rows, { transaction });
+      queryInterface.bulkInsert(table, rows, { transaction: t });
 
     try {
       // 1. Vault tiers
       await insert('vault_tiers', [
-        {
-          tier_name: 'EASY',
-          coin_multiplier: 1.0,
-          stealth_penalty: 10,
-          loot_rate: 1.0,
-          unlock_threshold: 0,
-        },
-        {
-          tier_name: 'NORMAL',
-          coin_multiplier: 1.5,
-          stealth_penalty: 20,
-          loot_rate: 1.5,
-          unlock_threshold: 3,
-        },
-        {
-          tier_name: 'HARD',
-          coin_multiplier: 2.0,
-          stealth_penalty: 35,
-          loot_rate: 2.0,
-          unlock_threshold: 3,
-        },
+        { tier_name: 'EASY', coin_multiplier: 1.0, stealth_penalty: 10, loot_rate: 1.0, unlock_threshold: 0 },
+        { tier_name: 'NORMAL', coin_multiplier: 1.5, stealth_penalty: 20, loot_rate: 1.5, unlock_threshold: 3 },
+        { tier_name: 'HARD', coin_multiplier: 2.0, stealth_penalty: 35, loot_rate: 2.0, unlock_threshold: 3 },
       ]);
 
       const tiers = {};
 
       for (const name of ['EASY', 'NORMAL', 'HARD']) {
-        tiers[name] = (
-          await find(
-            'SELECT tier_id FROM vault_tiers WHERE tier_name = :name',
-            { name }
-          )
-        ).tier_id;
+        tiers[name] = (await find(
+          'SELECT tier_id FROM vault_tiers WHERE tier_name = :name',
+          { name }
+        )).tier_id;
       }
 
       // 2. Question set
@@ -86,10 +52,7 @@ module.exports = {
       );
 
       await insert('question_sets', [
-        {
-          host_id: host.user_id,
-          title: 'General Knowledge Challenge',
-        },
+        { host_id: host.user_id, title: 'General Knowledge Challenge' },
       ]);
 
       const questionSet = await find(
@@ -99,68 +62,33 @@ module.exports = {
 
       // 3. Questions and choices
       const questions = [
-        {
-          text: 'Which planet is known as the Red Planet?',
-          correct: 1,
-          choices: ['Venus', 'Mars', 'Jupiter', 'Mercury'],
-        },
-        {
-          text: 'How many sides does a hexagon have?',
-          correct: 2,
-          choices: ['Five', 'Seven', 'Six', 'Eight'],
-        },
-        {
-          text: 'What is the largest ocean on Earth?',
-          correct: 0,
-          choices: ['Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean'],
-        },
-        {
-          text: 'What is the chemical symbol for water?',
-          correct: 1,
-          choices: ['CO2', 'H2O', 'O2', 'NaCl'],
-        },
-        {
-          text: 'Which animal is a mammal?',
-          correct: 3,
-          choices: ['Crocodile', 'Eagle', 'Frog', 'Dolphin'],
-        },
+        { text: 'Which planet is known as the Red Planet?', correct: 1, choices: ['Venus', 'Mars', 'Jupiter', 'Mercury'] },
+        { text: 'How many sides does a hexagon have?', correct: 2, choices: ['Five', 'Seven', 'Six', 'Eight'] },
+        { text: 'What is the largest ocean on Earth?', correct: 0, choices: ['Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean'] },
+        { text: 'What is the chemical symbol for water?', correct: 1, choices: ['CO2', 'H2O', 'O2', 'NaCl'] },
+        { text: 'Which animal is a mammal?', correct: 3, choices: ['Crocodile', 'Eagle', 'Frog', 'Dolphin'] },
       ];
 
-      await insert(
-        'questions',
-        questions.map((question) => ({
-          set_id: questionSet.set_id,
-          question_text: question.text,
-          question_type: 'MULTIPLE_CHOICE',
-          correct_index: question.correct,
-          time_limit_sec: 20,
-        }))
-      );
+      await insert('questions', questions.map((q) => ({
+        set_id: questionSet.set_id,
+        question_text: q.text,
+        question_type: 'MULTIPLE_CHOICE',
+        correct_index: q.correct,
+        time_limit_sec: 20,
+      })));
 
-      for (const question of questions) {
-        question.question_id = (
-          await find(
-            `SELECT question_id
-             FROM questions
-             WHERE set_id = :setId AND question_text = :text`,
-            {
-              setId: questionSet.set_id,
-              text: question.text,
-            }
-          )
-        ).question_id;
+      for (const q of questions) {
+        q.id = (await find(
+          'SELECT question_id FROM questions WHERE set_id = :setId AND question_text = :text',
+          { setId: questionSet.set_id, text: q.text }
+        )).question_id;
       }
 
-      await insert(
-        'question_choices',
-        questions.flatMap((question) =>
-          question.choices.map((choice_text, choice_index) => ({
-            question_id: question.question_id,
-            choice_index,
-            choice_text,
-          }))
-        )
-      );
+      await insert('question_choices', questions.flatMap((q) =>
+        q.choices.map((choice_text, choice_index) => ({
+          question_id: q.id, choice_index, choice_text,
+        }))
+      ));
 
       // 4. Equipment
       await insert('equipment', [
@@ -175,14 +103,11 @@ module.exports = {
       ]);
 
       const equipment = {};
-
-      for (const name of EQUIPMENT_NAMES) {
-        equipment[name] = (
-          await find(
-            'SELECT equipment_id FROM equipment WHERE name = :name',
-            { name }
-          )
-        ).equipment_id;
+      for (const name of NAMES) {
+        equipment[name] = (await find(
+          'SELECT equipment_id FROM equipment WHERE name = :name',
+          { name }
+        )).equipment_id;
       }
 
       // 5. Equipment subtype tables
@@ -210,15 +135,13 @@ module.exports = {
       ]);
 
       // 6. Finished game session
-      await insert('sessions', [
-        {
-          join_code: '583721',
-          set_id: questionSet.set_id,
-          status: 'ended',
-          started_at: at('10:00:00'),
-          ended_at: at('10:30:00'),
-        },
-      ]);
+      await insert('sessions', [{
+        join_code: '583721',
+        set_id: questionSet.set_id,
+        status: 'ended',
+        started_at: at('10:00:00'),
+        ended_at: at('10:30:00'),
+      }]);
 
       const session = await find(
         'SELECT session_id FROM sessions WHERE join_code = :code',
@@ -227,46 +150,10 @@ module.exports = {
 
       // 7. Players
       const seats = [
-        {
-          school: '2026-1002',
-          nickname: 'ShadowFox',
-          coins: 500,
-          stealth: 80,
-          status: 'escaped',
-          tier: 'NORMAL',
-          score: 500,
-          completed: true,
-        },
-        {
-          school: '2026-1003',
-          nickname: 'NightOwl',
-          coins: 450,
-          stealth: 75,
-          status: 'escaped',
-          tier: 'NORMAL',
-          score: 450,
-          completed: true,
-        },
-        {
-          school: '2026-1004',
-          nickname: 'QuickHands',
-          coins: 400,
-          stealth: 65,
-          status: 'escaped',
-          tier: 'EASY',
-          score: 400,
-          completed: true,
-        },
-        {
-          school: '2026-1005',
-          nickname: 'VaultBreaker',
-          coins: 100,
-          stealth: 0,
-          status: 'busted',
-          tier: 'HARD',
-          score: 100,
-          completed: false,
-        },
+        { school: '2026-1002', nickname: 'ShadowFox', coins: 500, stealth: 80, status: 'escaped', tier: 'NORMAL', score: 500, completed: true },
+        { school: '2026-1003', nickname: 'NightOwl', coins: 450, stealth: 75, status: 'escaped', tier: 'NORMAL', score: 450, completed: true },
+        { school: '2026-1004', nickname: 'QuickHands', coins: 400, stealth: 65, status: 'escaped', tier: 'EASY', score: 400, completed: true },
+        { school: '2026-1005', nickname: 'VaultBreaker', coins: 100, stealth: 0, status: 'busted', tier: 'HARD', score: 100, completed: false },
       ];
 
       const playerIds = {};
@@ -277,33 +164,24 @@ module.exports = {
           { school: seat.school }
         );
 
-        await insert('players', [
-          {
-            session_id: session.session_id,
-            user_id: user.user_id,
-            nickname: seat.nickname,
-            coins: seat.coins,
-            stealth: seat.stealth,
-            status: seat.status,
-            tier_id: tiers[seat.tier],
-            answered_in_tier: seat.completed ? 5 : 1,
-            final_score: seat.score,
-            current_question_id: null,
-            question_served_at: null,
-          },
-        ]);
+        await insert('players', [{
+          session_id: session.session_id,
+          user_id: user.user_id,
+          nickname: seat.nickname,
+          coins: seat.coins,
+          stealth: seat.stealth,
+          status: seat.status,
+          tier_id: tiers[seat.tier],
+          answered_in_tier: seat.completed ? 5 : 1,
+          final_score: seat.score,
+          current_question_id: null,
+          question_served_at: null,
+        }]);
 
-        playerIds[seat.nickname] = (
-          await find(
-            `SELECT player_id
-             FROM players
-             WHERE session_id = :sessionId AND nickname = :nickname`,
-            {
-              sessionId: session.session_id,
-              nickname: seat.nickname,
-            }
-          )
-        ).player_id;
+        playerIds[seat.nickname] = (await find(
+          'SELECT player_id FROM players WHERE session_id = :sessionId AND nickname = :nickname',
+          { sessionId: session.session_id, nickname: seat.nickname }
+        )).player_id;
       }
 
       // 8. Answers and reward offers
@@ -313,60 +191,43 @@ module.exports = {
         const questionCount = seat.completed ? questions.length : 2;
 
         for (let i = 0; i < questionCount; i++) {
-          const question = questions[i];
+          const q = questions[i];
           const correct = seat.completed || i === 0;
           const choiceIndex = correct
-            ? question.correct
-            : (question.correct + 1) % question.choices.length;
+            ? q.correct
+            : (q.correct + 1) % q.choices.length;
 
-          await insert('answers', [
-            {
-              player_id: playerIds[seat.nickname],
-              question_id: question.question_id,
-              choice_index: choiceIndex,
-              is_correct: correct,
-              submitted_at: at(`10:${String(1 + i).padStart(2, '0')}:00`),
-            },
-          ]);
+          await insert('answers', [{
+            player_id: playerIds[seat.nickname],
+            question_id: q.id,
+            choice_index: choiceIndex,
+            is_correct: correct,
+            submitted_at: at(`10:${String(1 + i).padStart(2, '0')}:00`),
+          }]);
 
           if (!correct) continue;
 
           const answer = await find(
-            `SELECT answer_id
-             FROM answers
-             WHERE player_id = :playerId AND question_id = :questionId`,
-            {
-              playerId: playerIds[seat.nickname],
-              questionId: question.question_id,
-            }
+            'SELECT answer_id FROM answers WHERE player_id = :playerId AND question_id = :questionId',
+            { playerId: playerIds[seat.nickname], questionId: q.id }
           );
 
-          await insert('reward_offers', [
-            {
-              answer_id: answer.answer_id,
-              created_at: at(`10:${String(1 + i).padStart(2, '0')}:05`),
-              is_chosen: true,
-            },
-          ]);
+          await insert('reward_offers', [{
+            answer_id: answer.answer_id,
+            created_at: at(`10:${String(1 + i).padStart(2, '0')}:05`),
+            is_chosen: true,
+          }]);
 
           const offer = await find(
             'SELECT offer_id FROM reward_offers WHERE answer_id = :answerId',
             { answerId: answer.answer_id }
           );
 
-          await insert(
-            'reward_offer_options',
-            [1, 2, 3].map((option_index) => ({
-              offer_id: offer.offer_id,
-              option_index,
-              equipment_id:
-                equipment[
-                  EQUIPMENT_NAMES[
-                    (offerCount + option_index) % EQUIPMENT_NAMES.length
-                  ]
-                ],
-            }))
-          );
+          await insert('reward_offer_options', [1, 2, 3].map((option_index) => ({
+            offer_id: offer.offer_id,
+            option_index,
+            equipment_id: equipment[NAMES[(offerCount + option_index) % NAMES.length]],
+          })));
 
           offerCount++;
         }
@@ -374,33 +235,17 @@ module.exports = {
 
       // 9. Inventory
       await insert('inventory_items', [
-        {
-          player_id: playerIds.ShadowFox,
-          equipment_id: equipment['Vault Shield'],
-          slot_no: 1,
-          acquired_at: at('10:05:00'),
-          armed_at: null,
-          charges_left: 1,
-        },
-        {
-          player_id: playerIds.NightOwl,
-          equipment_id: equipment['Pickpocket'],
-          slot_no: 1,
-          acquired_at: at('10:08:00'),
-          armed_at: null,
-          charges_left: 1,
-        },
+        { player_id: playerIds.ShadowFox, equipment_id: equipment['Vault Shield'], slot_no: 1, acquired_at: at('10:05:00'), armed_at: null, charges_left: 1 },
+        { player_id: playerIds.NightOwl, equipment_id: equipment['Pickpocket'], slot_no: 1, acquired_at: at('10:08:00'), armed_at: null, charges_left: 1 },
       ]);
 
       // 10. Status effect
-      await insert('status_effects', [
-        {
-          player_id: playerIds.VaultBreaker,
-          effect_type: 'CURSED',
-          magnitude: 1.0,
-          questions_left: 1,
-        },
-      ]);
+      await insert('status_effects', [{
+        player_id: playerIds.VaultBreaker,
+        effect_type: 'CURSED',
+        magnitude: 1.0,
+        questions_left: 1,
+      }]);
 
       // 11. Shop listings
       await insert('shop_listings', [
@@ -410,29 +255,14 @@ module.exports = {
         { session_id: session.session_id, equipment_id: equipment['Double Take'], stock: 2 },
       ]);
 
-      await transaction.commit();
-    } catch (error) {
-      await transaction.rollback();
-      throw error;
+      await t.commit();
+    } catch (err) {
+      await t.rollback();
+      throw err;
     }
   },
 
-  async down(queryInterface) {
-    const transaction = await queryInterface.sequelize.transaction();
-
-    try {
-      const del = (table, where) =>
-        queryInterface.bulkDelete(table, where, { transaction });
-
-      await del('sessions', { join_code: '583721' });
-      await del('equipment', { name: EQUIPMENT_NAMES });
-      await del('question_sets', { title: 'General Knowledge Challenge' });
-      await del('vault_tiers', { tier_name: ['EASY', 'NORMAL', 'HARD'] });
-
-      await transaction.commit();
-    } catch (error) {
-      await transaction.rollback();
-      throw error;
-    }
+  async down() {
+    // Preserve existing demo game and Week 11 test records.
   },
 };
